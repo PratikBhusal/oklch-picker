@@ -5,6 +5,7 @@ mixin card(type)
 
     if type === 'l'
       h2.card_title Lightness
+        button.card_peak( type="button" ) Peak
       .card_number
         +field('L', 'l', {
           type: 'text',

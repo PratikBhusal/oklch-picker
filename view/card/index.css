@@ -32,6 +32,25 @@ body {
   line-height: 40px;
 }
 
+.card_peak {
+  margin-inline-start: 8px;
+  padding: 4px 8px;
+  font-size: 11.25px;
+  font-weight: normal;
+  line-height: 13px;
+  color: var(--text-badge);
+  vertical-align: middle;
+  cursor: pointer;
+  background: var(--surface-badge);
+  border: none;
+  border-radius: 8px;
+
+  &:hover {
+    color: var(--surface-badge);
+    background: var(--text-badge);
+  }
+}
+
 .card_number {
   position: absolute;
   inset-inline-end: 32px;

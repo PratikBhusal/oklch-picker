@@ -1,10 +1,11 @@
 import { colordx } from '@colordx/core'
 
 import { getCleanCtx, initCanvasSize } from '../../lib/canvas.ts'
+import { build, inP3, inRGB, inRec2020 } from '../../lib/colors.ts'
 import { getBorders } from '../../lib/dom.ts'
 import { prepareWorkers } from '../../lib/workers.ts'
 import { reportFreeze, reportPaint } from '../../stores/benchmark.ts'
-import { onPaint, setCurrentComponents } from '../../stores/current.ts'
+import { current, onPaint, setCurrentComponents } from '../../stores/current.ts'
 import { showCharts, showP3, showRec2020 } from '../../stores/settings.ts'
 import type { BorderColor } from './paint.ts'
 import type { PaintData, PaintedData } from './worker.ts'
@@ -84,6 +85,79 @@ function initEvents(chart: HTMLCanvasElement): void {
 initEvents(canvasL)
 initEvents(canvasC)
 initEvents(canvasH)
+
+const SEARCH_ITERATIONS = 50
+
+/**
+ * Binary search for the highest chroma in [0, c] that stays within the given
+ * gamut at L and H.
+ */
+function maxChroma(
+  inGamut: (color: ReturnType<typeof build>) => boolean,
+  lightness: number,
+  chroma: number,
+  hue: number
+): number {
+  let lo = 0
+  let hi = chroma
+  for (let i = 0; i < SEARCH_ITERATIONS; i++) {
+    let mid = (lo + hi) / 2
+    if (inGamut(build(lightness, mid, hue))) {
+      lo = mid
+    } else {
+      hi = mid
+    }
+  }
+  return lo
+}
+
+/**
+ * For a given hue, find the maximum in-gamut chrona and lightness combination.
+ * Visually, this is peak of the lightness triangle.
+ */
+function findPeakGamut(
+  inGamut: (color: ReturnType<typeof build>) => boolean,
+  hue: number
+): { chroma: number; lightness: number } {
+  const cMax = getMaxC()
+  let lo = 0
+  let hi = L_MAX_COLOR
+  for (let i = 0; i < SEARCH_ITERATIONS; i++) {
+    let m1 = lo + (hi - lo) / 3
+    let m2 = hi - (hi - lo) / 3
+    if (maxChroma(inGamut, m1, cMax, hue) < maxChroma(inGamut, m2, cMax, hue)) {
+      lo = m1
+    } else {
+      hi = m2
+    }
+  }
+  const peakLightness = (lo + hi) / 2 / L_MAX_COLOR
+  let peakChroma = maxChroma(inGamut, peakLightness * L_MAX_COLOR, cMax, hue)
+  while (!inGamut(build(peakLightness * L_MAX_COLOR, peakChroma, hue))) {
+    peakChroma -= 0.0001
+  }
+  peakChroma = parseFloat(peakChroma.toFixed(4))
+  while (!inGamut(build(peakLightness * L_MAX_COLOR, peakChroma, hue))) {
+    peakChroma = parseFloat((peakChroma - 0.0001).toFixed(4))
+  }
+  return { chroma: peakChroma, lightness: peakLightness }
+}
+
+let peakButton = document.querySelector<HTMLButtonElement>('.card_peak')!
+
+/**
+ * Return the widest gamut enabled in settings. Falls back to sRGB.
+ */
+function getActiveGamut(): (color: ReturnType<typeof build>) => boolean {
+  if (showRec2020.get()) return inRec2020
+  if (showP3.get()) return inP3
+  return inRGB
+}
+
+peakButton.addEventListener('click', () => {
+  const { chroma, lightness } = findPeakGamut(getActiveGamut(), current.get().h)
+  setCurrentComponents({ c: chroma, l: lightness })
+})
 
 let startWork = prepareWorkers<PaintData, PaintedData>(PaintWorker)
 
