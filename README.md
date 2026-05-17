@@ -2,8 +2,7 @@
 
 Color picker and converter for OKLCH and LCH color space.
 
-- [`oklch.com`](https://oklch.com)
-- [`lch.oklch.com`](https://lch.oklch.com)
+- https://pratikbhusal.github.io/oklch-picker/
 
 OKLCH is a new way to encode colors (like hex, RGBA, or HSL):
 
