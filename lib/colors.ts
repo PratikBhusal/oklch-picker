@@ -111,17 +111,22 @@ export function parseAnything(value: string): Lch | undefined {
   let dx = colordx(cleaned)
   // Round per component (not via colordx's uniform precision arg) because
   // hue picks up atan2 noise above 4 dp while L/C stay clean to 6 dp.
+  // if (false) {
   if (format === COLOR_FN) {
     let r = LCH ? dx.toLch(RAW_PRECISION) : dx.toOklch(RAW_PRECISION)
     let lcDp = LCH ? 4 : 6
-    return {
+    const result =  {
       alpha: r.alpha,
       c: parseFloat(r.c.toFixed(lcDp)),
       h: parseFloat(r.h.toFixed(4)),
       l: parseFloat(r.l.toFixed(lcDp))
     }
+    // console.log("result", result);
+    return result;
   }
-  return toCanonical(dx)
+  const result = toCanonical(dx);
+  // console.log("result", result);
+  return result;
 }
 
 // Reinterpret sRGB bytes as Display-P3 channels (Figma's hex P3 mode).

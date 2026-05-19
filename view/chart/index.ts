@@ -136,10 +136,7 @@ function findPeakGamut(
   while (!inGamut(build(peakLightness * L_MAX_COLOR, peakChroma, hue))) {
     peakChroma -= 0.0001
   }
-  peakChroma = parseFloat(peakChroma.toFixed(4))
-  while (!inGamut(build(peakLightness * L_MAX_COLOR, peakChroma, hue))) {
-    peakChroma = parseFloat((peakChroma - 0.0001).toFixed(4))
-  }
+  console.log("Peak found:", { chroma: peakChroma, lightness: peakLightness });
   return { chroma: peakChroma, lightness: peakLightness }
 }
 
@@ -166,10 +163,7 @@ function findPeakGamutInHueRange(
   while (!inGamut(build(lightness, peakChroma, peakHue))) {
     peakChroma -= 0.0001
   }
-  peakChroma = parseFloat(peakChroma.toFixed(4))
-  while (!inGamut(build(lightness, peakChroma, peakHue))) {
-    peakChroma = parseFloat((peakChroma - 0.0001).toFixed(4))
-  }
+  console.log("Peak found:", { chroma: peakChroma, hue: peakHue });
   return { chroma: peakChroma, hue: peakHue }
 }
 
@@ -212,6 +206,92 @@ chromaPeakButton.addEventListener('click', () => {
     hMax
   )
   setCurrentComponents({ c: chroma, h: hue })
+})
+
+let hueListButton = document.querySelector<HTMLButtonElement>('.card_hue_list_btn')!
+let hueListHmin = document.querySelector<HTMLInputElement>('.card_hue_hmin')!
+let hueListHmax = document.querySelector<HTMLInputElement>('.card_hue_hmax')!
+let hueListLmin = document.querySelector<HTMLInputElement>('.card_hue_lmin')!
+let hueListLmax = document.querySelector<HTMLInputElement>('.card_hue_lmax')!
+let hueListCmin = document.querySelector<HTMLInputElement>('.card_hue_cmin')!
+let hueListCmax = document.querySelector<HTMLInputElement>('.card_hue_cmax')!
+let hueListOutput = document.querySelector<HTMLUListElement>('.card_hue_list_output')!
+let hueListCopy = document.querySelector<HTMLButtonElement>('.card_hue_list_copy')!
+let hueListOverflowNote = document.querySelector<HTMLParagraphElement>('.card_hue_list_overflow_note')!
+
+function updateHueListDisabled(): void {
+  let hMin = parseFloat(hueListHmin.value)
+  let hMax = parseFloat(hueListHmax.value)
+  let lMin = parseFloat(hueListLmin.value)
+  let lMax = parseFloat(hueListLmax.value)
+  let cMin = parseFloat(hueListCmin.value)
+  let cMax = parseFloat(hueListCmax.value)
+  hueListButton.disabled =
+    (!isNaN(hMin) && !isNaN(hMax) && hMin >= hMax) ||
+    (!isNaN(lMin) && !isNaN(lMax) && lMin > lMax) ||
+    (!isNaN(cMin) && !isNaN(cMax) && cMin > cMax)
+}
+
+hueListHmin.addEventListener('input', updateHueListDisabled)
+hueListHmax.addEventListener('input', updateHueListDisabled)
+hueListLmin.addEventListener('input', updateHueListDisabled)
+hueListLmax.addEventListener('input', updateHueListDisabled)
+hueListCmin.addEventListener('input', updateHueListDisabled)
+hueListCmax.addEventListener('input', updateHueListDisabled)
+
+hueListCopy.addEventListener('click', () => {
+  let lines = hueListResults.map(({ l, c, h }) => `oklch(${l} ${c} ${h})`)
+  navigator.clipboard.writeText(lines.join('\n'))
+  hueListCopy.classList.add('is-copied')
+  setTimeout(() => hueListCopy.classList.remove('is-copied'), 500)
+})
+
+let hueListResults: { l: number; c: number; h: number  }[] = []
+
+const MAX_DISPLAY_RESULTS = 10
+
+function renderHueList(): void {
+  hueListOutput.replaceChildren()
+  hueListOutput.classList.toggle('has-results', hueListResults.length > 0)
+  hueListCopy.classList.toggle('is-visible', hueListResults.length > 0)
+  hueListOverflowNote.classList.toggle('is-visible', hueListResults.length > MAX_DISPLAY_RESULTS)
+  for (let { l, c, h } of hueListResults.slice(0, MAX_DISPLAY_RESULTS)) {
+    let li = document.createElement('li')
+    li.textContent = `oklch(${l} ${c} ${h})`
+    li.addEventListener('click', () => setCurrentComponents({ h, c, l }))
+    hueListOutput.appendChild(li)
+  }
+}
+
+hueListButton.addEventListener('click', () => {
+  const hMin = parseFloat(hueListHmin.value) || 0
+  const hMax = parseFloat(hueListHmax.value) || H_MAX
+  const lMin = parseFloat(hueListLmin.value) || 0
+  const lMax = parseFloat(hueListLmax.value) || 1
+  const hasCRange = hueListCmin.value !== '' || hueListCmax.value !== ''
+  const { c: currentC } = current.get()
+  const cMin = hasCRange ? (parseFloat(hueListCmin.value) || 0) : currentC
+  const cMax = hasCRange ? (parseFloat(hueListCmax.value) || C_MAX) : currentC
+  const cStep = hasCRange ? 0.0001 : 1
+  const gamut = getActiveGamut()
+  hueListResults = []
+  // Index-based to avoid floating-point drift from repeated += increments.
+  for (let i = 0; ; i++) {
+    const c = cMax - i * cStep
+    if (c < (cMin - 1e-9)) break
+    for (let j = 0; ; j++) {
+      const l = lMin + j * 0.0001
+      if (l > lMax + 1e-9) break
+      for (let k = 0; ; k++) {
+        const h = hMin + k * 0.01
+        if (h > hMax + 1e-9) break
+        if (gamut(build(l * L_MAX_COLOR, c, h))) {
+          hueListResults.push({ l: parseFloat(l.toFixed(6)), c: parseFloat(c.toFixed(6)), h: parseFloat(h.toFixed(4)) });
+        }
+      }
+    }
+  }
+  renderHueList()
 })
 
 let startWork = prepareWorkers<PaintData, PaintedData>(PaintWorker)

@@ -15,6 +15,7 @@
       'L'
       'C'
       'H'
+      'list'
       'extra'
       'prefs'
       'links';
@@ -32,7 +33,8 @@
       'main  prefs'
       'main  .'
       'L     C'
-      'extra H';
+      'extra H'
+      'list  .';
     padding-bottom: 28px;
   }
 
@@ -43,7 +45,7 @@
       'main  extra H'
       'links extra H'
       'prefs extra H'
-      'prefs extra .';
+      'prefs extra list';
   }
 
   @media (width >= 1230px) and (width < 1320px) {
@@ -90,6 +92,7 @@
 .layout_l,
 .layout_c,
 .layout_h,
+.layout_list,
 .layout_extra,
 .layout_prefs,
 .layout_links {
@@ -100,6 +103,10 @@
 
 .layout_l {
   grid-area: L;
+
+  @media (width >= 830px) {
+    display: flex;
+  }
 }
 
 .layout_c {
@@ -108,6 +115,10 @@
 
 .layout_h {
   grid-area: H;
+}
+
+.layout_list {
+  grid-area: list;
 }
 
 .layout_extra {
