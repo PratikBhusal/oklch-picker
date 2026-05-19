@@ -112,7 +112,7 @@ function maxChroma(
 }
 
 /**
- * For a given hue, find the maximum in-gamut chrona and lightness combination.
+ * For a given hue, find the maximum in-gamut chroma and lightness combination.
  * Visually, this is peak of the lightness triangle.
  */
 function findPeakGamut(
@@ -143,7 +143,37 @@ function findPeakGamut(
   return { chroma: peakChroma, lightness: peakLightness }
 }
 
-let peakButton = document.querySelector<HTMLButtonElement>('.card_peak')!
+function findPeakGamutInHueRange(
+  inGamut: (color: ReturnType<typeof build>) => boolean,
+  lightness: number,
+  hMin: number,
+  hMax: number
+): { chroma: number; hue: number } {
+  const cMax = getMaxC()
+  let lo = hMin
+  let hi = hMax
+  for (let i = 0; i < SEARCH_ITERATIONS; i++) {
+    let m1 = lo + (hi - lo) / 3
+    let m2 = hi - (hi - lo) / 3
+    if (maxChroma(inGamut, lightness, cMax, m1) < maxChroma(inGamut, lightness, cMax, m2)) {
+      lo = m1
+    } else {
+      hi = m2
+    }
+  }
+  const peakHue = (lo + hi) / 2
+  let peakChroma = maxChroma(inGamut, lightness, cMax, peakHue)
+  while (!inGamut(build(lightness, peakChroma, peakHue))) {
+    peakChroma -= 0.0001
+  }
+  peakChroma = parseFloat(peakChroma.toFixed(4))
+  while (!inGamut(build(lightness, peakChroma, peakHue))) {
+    peakChroma = parseFloat((peakChroma - 0.0001).toFixed(4))
+  }
+  return { chroma: peakChroma, hue: peakHue }
+}
+
+let peakButton = document.querySelector<HTMLButtonElement>('.is-l .card_peak')!
 
 /**
  * Return the widest gamut enabled in settings. Falls back to sRGB.
@@ -157,6 +187,31 @@ function getActiveGamut(): (color: ReturnType<typeof build>) => boolean {
 peakButton.addEventListener('click', () => {
   const { chroma, lightness } = findPeakGamut(getActiveGamut(), current.get().h)
   setCurrentComponents({ c: chroma, l: lightness })
+})
+
+let chromaPeakButton = document.querySelector<HTMLButtonElement>('.is-c .card_peak')!
+let chromaPeakHmin = document.querySelector<HTMLInputElement>('.card_peak_hmin')!
+let chromaPeakHmax = document.querySelector<HTMLInputElement>('.card_peak_hmax')!
+
+function updateChromaPeakDisabled(): void {
+  let hMin = parseFloat(chromaPeakHmin.value) || 0
+  let hMax = parseFloat(chromaPeakHmax.value) || H_MAX
+  chromaPeakButton.disabled = hMin >= hMax
+}
+
+chromaPeakHmin.addEventListener('input', updateChromaPeakDisabled)
+chromaPeakHmax.addEventListener('input', updateChromaPeakDisabled)
+
+chromaPeakButton.addEventListener('click', () => {
+  let hMin = parseFloat(chromaPeakHmin.value) || 0
+  let hMax = parseFloat(chromaPeakHmax.value) || H_MAX
+  let { chroma, hue } = findPeakGamutInHueRange(
+    getActiveGamut(),
+    current.get().l * L_MAX_COLOR,
+    hMin,
+    hMax
+  )
+  setCurrentComponents({ c: chroma, h: hue })
 })
 
 let startWork = prepareWorkers<PaintData, PaintedData>(PaintWorker)

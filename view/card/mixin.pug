@@ -23,6 +23,24 @@ mixin card(type)
 
     else if type === 'c'
       h2.card_title Chroma
+        button.card_peak( type="button" ) Maximize
+      .card_peak_bounds
+        span.card_hue_list_label H
+        input.card_peak_hmin(
+          type="number"
+          min="0"
+          max=H_MAX
+          step=H_STEP
+          placeholder="min"
+        )
+        | –
+        input.card_peak_hmax(
+          type="number"
+          min="0"
+          max=H_MAX
+          step=H_STEP
+          placeholder="max"
+        )
       .card_number
         +field('C', 'c', {
           type: 'text',
